@@ -3,31 +3,32 @@ import json
 
 app = FastAPI()
 
-connections = []
+users = {}
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    connections.append(ws)
+    username = None
+
     try:
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
 
-            # send safely
-            dead_connections = []
+            if "register" in msg:
+                username = msg["register"]
+                users[username] = ws
+                continue
 
-            for conn in connections:
-                if conn != ws:
-                    try:
-                        await conn.send_text(json.dumps(msg))
-                    except:
-                        dead_connections.append(conn)
+            sender = msg["from"]
+            target = msg["to"]
 
-            # remove dead ones
-            for dc in dead_connections:
-                connections.remove(dc)
+            if target in users:
+                try:
+                    await users[target].send_text(json.dumps(msg))
+                except:
+                    pass
 
     except WebSocketDisconnect:
-        if ws in connections:
-            connections.remove(ws)
+        if username in users:
+            del users[username]
