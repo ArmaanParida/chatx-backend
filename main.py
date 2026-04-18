@@ -1,7 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-
-app = FastAPI()
-connections = []
+import json
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
@@ -10,8 +7,11 @@ async def websocket_endpoint(ws: WebSocket):
     try:
         while True:
             data = await ws.receive_text()
+            msg = json.loads(data)
+
             for conn in connections:
                 if conn != ws:
-                    await conn.send_text(data)
+                    await conn.send_text(json.dumps(msg))
+
     except WebSocketDisconnect:
         connections.remove(ws)
