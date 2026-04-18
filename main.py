@@ -3,7 +3,21 @@ import json
 
 app = FastAPI()
 
-users = {}
+users = {}  # username → websocket
+
+async def broadcast_user_list():
+    user_list = list(users.keys())
+    msg = json.dumps({"type": "users", "users": user_list})
+
+    dead = []
+    for u, ws in users.items():
+        try:
+            await ws.send_text(msg)
+        except:
+            dead.append(u)
+
+    for d in dead:
+        del users[d]
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
@@ -18,6 +32,8 @@ async def websocket_endpoint(ws: WebSocket):
             if "register" in msg:
                 username = msg["register"]
                 users[username] = ws
+
+                await broadcast_user_list()
                 continue
 
             sender = msg["from"]
@@ -32,3 +48,4 @@ async def websocket_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         if username in users:
             del users[username]
+            await broadcast_user_list()
