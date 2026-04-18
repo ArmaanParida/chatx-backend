@@ -12,14 +12,22 @@ async def websocket_endpoint(ws: WebSocket):
     try:
         while True:
             data = await ws.receive_text()
-
-            # parse incoming JSON
             msg = json.loads(data)
 
-            # broadcast to all except sender
+            # send safely
+            dead_connections = []
+
             for conn in connections:
                 if conn != ws:
-                    await conn.send_text(json.dumps(msg))
+                    try:
+                        await conn.send_text(json.dumps(msg))
+                    except:
+                        dead_connections.append(conn)
+
+            # remove dead ones
+            for dc in dead_connections:
+                connections.remove(dc)
 
     except WebSocketDisconnect:
-        connections.remove(ws)
+        if ws in connections:
+            connections.remove(ws)
